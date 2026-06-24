@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ku">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>یاری سێ قۆڵی - Deaf, Mute, Blind Co-op</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #111;
+            color: #fff;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* Blind effect overlay */
+        #blind-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.98); /* 98% black for blind player */
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+            box-shadow: inset 0 0 100px rgba(255, 255, 255, 0.05);
+        }
+
+        #blind-instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #ff3b30;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+            z-index: 6;
+            pointer-events: none;
+            direction: rtl;
+        }
+
+        /* UI HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #555;
+            max-width: 300px;
+            direction: rtl;
+        }
+
+        #hud h2 {
+            margin-top: 0;
+            color: #4cd964;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .role-deaf { background-color: #007aff; }
+        .role-mute { background-color: #ff9500; }
+        .role-blind { background-color: #ff3b30; }
+
+        /* Chat Window */
+        #chat-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 320px;
+            height: 250px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            direction: rtl;
+        }
+
+        #chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 14px;
+            list-style: none;
+            margin: 0;
+        }
+
+        #chat-messages li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        #chat-input-container {
+            display: flex;
+            border-top: 1px solid #444;
+        }
+
+        #chat-input {
+            flex-grow: 1;
+            background: #222;
+            border: none;
+            padding: 10px;
+            color: white;
+            outline: none;
+        }
+
+        #chat-send {
+            background: #4cd964;
+            color: black;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Puzzle Panel for interacting with the buttons */
+        #interaction-prompt {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border-radius: 30px;
+            border: 2px solid #fff;
+            font-size: 18px;
+            display: none;
+            z-index: 10;
+            pointer-events: none;
+            direction: rtl;
+        }
+
+        /* Button keypad for Deaf/Mute player */
+        #keypad-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15,15,15,0.95);
+            border: 3px solid #007aff;
+            border-radius: 12px;
+            padding: 25px;
+            z-index: 20;
+            display: none;
+            text-align: center;
+            direction: rtl;
+        }
+
+        .keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .keypad-btn {
+            height: 80px;
+            font-size: 24px;
+            font-weight: bold;
+            background: #333;
+            color: #fff;
+            border: 2px solid #555;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .keypad-btn:hover {
+            background: #555;
+            border-color: #007aff;
+        }
+
+        .keypad-btn:active {
+            transform: scale(0.95);
+        }
+
+        #close-keypad {
+            margin-top: 15px;
+            background: #ff3b30;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Audio Player for Blind player */
+        #sound-player-panel {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid #ff3b30;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 10;
+            display: none;
+            text-align: center;
+            direction: rtl;
+        }
+
+        #play-sequence-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Instruction Screen on Join */
+        #lobby-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.95);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            direction: rtl;
+        }
+
+        .lobby-content {
+            background: #222;
+            border: 2px solid #4cd964;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(76, 217, 100, 0.3);
+        }
+
+        .lobby-content h1 {
+            color: #4cd964;
+            margin-top: 0;
+        }
+
+        .start-btn {
+            background: #4cd964;
+            color: black;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 25px;
+            transition: transform 0.2s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Alert notifications */
+        #notification {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,122,255,0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 50;
+            display: none;
+            direction: rtl;
+        }
+    </style>
+    <!-- Three.js for 3D engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Socket.io for multiplayer -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div id="lobby-overlay">
+        <div class="lobby-content">
+            <h1>یاری سێ قۆڵی (Deaf, Mute, Blind Co-op)</h1>
+            <p>بەخێربێیت بۆ یارییەکە! لێرەدا سێ یاریزان پێکەوە لەناو خانوویەکی ٣ ڕەهەندی (3D) کاردەکەن بۆ بازدان و چارەسەرکردنی مەتەڵێک.</p>
+            <p>هر یاریزانێک خاوەنی تایبەتمەندی و کەمئەندامی خۆیەتی:</p>
+            <ul style="text-align: right; line-height: 1.6; display: inline-block;">
+                <li>🔊 <strong>کەر (Deaf):</strong> هەموو شتێک دەبینێت، دەتوانێت چات بکات، بەڵام هیچ دەنگێک نابیستێت!</li>
+                <li>🙊 <strong>لال (Mute):</strong> دەبینێت و دەبیستێت، بەڵام ناتوانێت چات بکات (تەنها بە کلیک کردن ئاماژەی سوور دروست دەکات بۆ نیشاندانی شوێنەکان).</li>
+                <li>👁️ <strong>کوێر (Blind):</strong> سکرینەکەی ڕەشە! تەنها لە ڕێگای بیستنی دەنگەکان و لێدانی دوگمەی بیستنی ئاوازەکە دەتوانێت ڕێنمایی ئەوانی تر بکات!</li>
+            </ul>
+            <br>
+            <button class="start-btn" onclick="startGame()">چوونە ناو یاری</button>
+        </div>
+    </div>
+
+    <div id="notification"></div>
+
+    <div id="game-container"></div>
+
+    <!-- Blind overlay -->
+    <div id="blind-overlay"></div>
+    <div id="blind-instructions">
+        تۆ کوێریت!<br>
+        سکرینەکەت ڕەشە. بەڵام دەتوانیت گوێت لە دەنگەکان بێت.<br>
+        لەلای ڕاست دوگمەی "لێدانی ئاوازەکە" دابگرە بۆ بیستنی کۆدی دەرگا!<br>
+        کۆدەکە بە چاتی دەنگی یان نووسین بۆ هاوڕێکانت ڕوون بکەرەوە.
+    </div>
+
+    <!-- HUD info -->
+    <div id="hud">
+        <h2>یاری سێ قۆڵی</h2>
+        <div>رۆڵی تۆ: <span id="my-role" class="role-badge">spectator</span></div>
+        <div id="mission-info" style="margin-top: 10px; line-height: 1.4;">
+            <strong>ئەرک:</strong> کۆدی دەرگاکە چارەسەر بکەن بۆ ڕزگاربوون!
+        </div>
+        <div id="puzzle-progress" style="margin-top: 10px; color: #ff9500;">
+            ئاستی کۆدەکە: 0 / 3
+        </div>
+    </div>
+
+    <!-- Blind sound player -->
+    <div id="sound-player-panel">
+        <h3>ئامێری بیستنی کۆد</h3>
+        <p>گوێ لە دەنگەکە بگرە و کۆدەکە بە هاوڕێکانت بڵێ!</p>
+        <button id="play-sequence-btn">🔊 لێدانی ئاوازەکە</button>
+    </div>
+
+    <!-- Interactive keypad (For Deaf/Mute to enter the sound code) -->
+    <div id="keypad-overlay">
+        <h3>داخڵکردنی کۆدی ئاواز</h3>
+        <p>سێ دوگمەکە دابگرە بەپێی ئاوازی بیستراو!</p>
+        <div class="keypad-grid">
+            <button class="keypad-btn" onclick="pressKey(1)">١<br><small>(بەرزیی دەنگ: بەرز)</small></button>
+            <button class="keypad-btn" onclick="pressKey(2)">٢<br><small>(بەرزیی دەنگ: مامناوەند)</small></button>
+            <button class="keypad-btn" onclick="pressKey(3)">٣<br><small>(بەرزیی دەنگ: نزم)</small></button>
+        </div>
+        <button id="close-keypad" onclick="toggleKeypad(false)">داخستن</button>
+    </div>
+
+    <!-- Interaction Indicator -->
+    <div id="interaction-prompt">بۆ بەکارهێنان کلیلی [ E ] دابگرە</div>
+
+    <!-- Chat system -->
+    <div id="chat-container">
+        <ul id="chat-messages"></ul>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="پەیامەکەت بنووسە..." autocomplete="off">
+            <button id="chat-send">بنێرە</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
